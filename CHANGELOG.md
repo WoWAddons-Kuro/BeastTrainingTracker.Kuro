@@ -1,5 +1,14 @@
 # Beast Training Tracker (Kuro) 1.5.0-kuro.1
 
+### Fixed
+- **WoW Forever: the account-wide backup is now keyed by character GUID instead of name.** Forever characters have a first and a last name and the one-name API returns only the first, so every alt sharing a first name (every "Kuro ...") landed in the same backup slot - a new hunter would "restore" another alt's learned ranks and tamed pets, and overwrite them again on logout. Old name-keyed backup entries are ignored (no migration); your live per-character data is untouched and is re-backed-up under the new key on the next login.
+- RareScanner kill timers: the lookup into RareScanner's per-character data now tries the Forever two-name key shape as well.
+
+### Changed
+- New `Client\` layer (`Client.lua`, `Client_Forever.lua`, `Client_ClassicEra.lua`, `Client_Select.lua`): every flavour-specific API (character names, GUID key) lives in one file per game client behind a common interface; the rest of the addon never calls `UnitName`/`GetRealmName` directly.
+
+## 1.5.0-kuro.1 (initial fork)
+
 Fork of Socks' Beast Training Tracker 1.5.0, renamed so it can be installed
 next to the original without collisions.
 

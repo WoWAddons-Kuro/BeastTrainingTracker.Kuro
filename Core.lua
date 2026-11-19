@@ -757,10 +757,6 @@ local DEFAULTS = {
   upgradeAlert = true, levelNudge = true,
 }
 
-local function CharKey()
-  return (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
-end
-
 local function InitDB()
   BeastTrainingTrackerKuroDB = BeastTrainingTrackerKuroDB or {}
   BeastTrainingTrackerKuroBackup = BeastTrainingTrackerKuroBackup or {}
@@ -788,10 +784,14 @@ local function InitDB()
 
   -- merge the account-wide backup back in, then keep it in sync
   -- (learned ranks + tamed special pets and their name links)
+  -- Keyed by player GUID (ns.Client.PlayerKey), never by name: on WoW Forever
+  -- UnitName is only the first name and every "Kuro ..." alt would share one
+  -- slot. Old Name-Realm entries are left to die; no migration (see
+  -- PROJECT_STRUCTURE.md).
   db.tamedRares = db.tamedRares or {}
   db.tamedNicks = db.tamedNicks or {}
   db.petLinks = db.petLinks or {}
-  local key = CharKey()
+  local key = ns.Client.PlayerKey()
   local bk = BeastTrainingTrackerKuroBackup[key]
   local restored, restoredPets = 0, 0
   if type(bk) == "table" then

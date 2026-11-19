@@ -100,11 +100,13 @@ function RS.LastDeath(id)
 end
 
 -- Your own kill: RareScanner stores the respawn timestamp, or -1 for "never"
+-- RareScanner's db.char is AceDB-keyed by name; the key shape differs per
+-- flavour (Forever: "First Surname" / "First - Realm"), so the candidate list
+-- comes from the client layer and nothing here touches UnitName/GetRealmName.
 function RS.MyKill(id)
   local ok, res = pcall(function()
-    local name, realm = UnitName("player"), GetRealmName()
     local chars = DB().char
-    for _, key in ipairs({ name .. " - " .. realm, name .. " " .. realm, name .. "-" .. realm, name }) do
+    for _, key in ipairs(ns.Client.ThirdPartyCharKeyCandidates()) do
       local c = chars[key]
       if type(c) == "table" and type(c.rares_killed) == "table" then
         return Num(c.rares_killed[id])

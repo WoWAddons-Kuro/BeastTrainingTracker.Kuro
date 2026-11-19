@@ -3,7 +3,10 @@
 -- files (UI.lua, Tracker.lua, Alerts.lua) aren't loaded by the tests.
 local H = {}
 
-local LOGIC_FILES = { "Data.lua", "RarePets.lua", "RareIds.lua", "Core.lua", "Geo.lua", "Rares.lua" }
+local LOGIC_FILES = {
+  "Client/Client.lua", "Client/Client_Forever.lua", "Client/Client_ClassicEra.lua", "Client/Client_Select.lua",
+  "Data.lua", "RarePets.lua", "RareIds.lua", "Core.lua", "Geo.lua", "Rares.lua",
+}
 
 ------------------------------------------------------------------------
 -- Fake frames: remember scripts and registered events, ignore the rest
@@ -76,6 +79,8 @@ function H.load(opts)
     trainer = nil,   -- { {"Bite","Rank 1","available"}, ... }
     units = {},      -- other units: units.target = { name = "Prairie Wolf" }
     faction = "Horde",
+    playerGuid = "Player-1-0000ABCD",  -- the per-character SavedVariables key (BeastTrainingTrackerKuroBackup)
+    playerSurname = nil,               -- set to e.g. "Oakheart" to simulate a Forever two-name character
   }
   local S = H.state
 
@@ -132,7 +137,12 @@ function H.load(opts)
     return S.units[u] ~= nil
   end
   UnitCreatureFamily = function(u) if u == "pet" and S.pet then return S.pet.family end end
-  UnitGUID = function(u) if u == "pet" and S.pet then return S.pet.guid end end
+  UnitGUID = function(u)
+    if u == "player" then return S.playerGuid end
+    if u == "pet" and S.pet then return S.pet.guid end
+  end
+  -- Forever two-name shape: tests can set S.playerSurname to exercise it
+  UnitNameUnmodified = function(u) if u == "player" then return "Tester", S.playerSurname end end
   UnitIsUnit = function() return false end
   UnitIsPlayer = function(u) return u == "player" end
   GetRealmName = function() return "TestRealm" end
