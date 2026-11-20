@@ -150,9 +150,7 @@ local function Line(i)
     GameTooltip:AddLine(" ")
     if not anyLocated then
       -- nothing can be waypointed, so don't offer to
-      GameTooltip:AddLine("No known location for any of these beasts.", 1, 0.5, 0.25, true)
-      GameTooltip:AddLine(Geo.HasQuestie() and "Not in Questie's data yet - target or mouse over one to record where you found it."
-        or "Install Questie, or target / mouse over one to record where you found it.", 0.5, 0.5, 0.5, true)
+      GameTooltip:AddLine("No known location for these beasts.", 1, 0.5, 0.25, true)
     elseif not Located(e.teachers[1]) then
       GameTooltip:AddLine("Shift-click: waypoint the ones with a location", 0.5, 0.5, 0.5)
       GameTooltip:AddLine("Right-click: show a different beast", 0.5, 0.5, 0.5)
