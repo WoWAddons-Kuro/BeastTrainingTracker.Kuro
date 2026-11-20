@@ -272,6 +272,12 @@ local function AddTeachLines(tt)
   if not ns.db or not ns.Active() then return end
   local _, unit = tt:GetUnit()
   if not unit or UnitIsPlayer(unit) then return end
+  -- Your own pet: show what it eats (the family tooltip line is all the game gives)
+  if UnitIsUnit and UnitIsUnit(unit, "pet") then
+    local dietText = ns.FamilyDietText(ns.PetFamily())
+    if dietText then tt:AddLine("Eats: " .. dietText, 0.8, 0.8, 0.8); tt:Show() end
+    return
+  end
   local name = UnitName(unit)
   local list = name and ns.teacherIndex[name]
   if not list then return end
