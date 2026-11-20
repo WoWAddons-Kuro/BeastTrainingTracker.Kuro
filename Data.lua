@@ -103,7 +103,7 @@ ns.abilities = {
         "Ferocious Grizzled Bear;Bear;11-12;Silverpine Forest", "Mangeclaw;Bear;11;Dun Morogh", "Elmpaw;Bear;12;Elwynn Forest",
         "Bjarn;Bear;12;Dun Morogh", "Tide Crawler;Crab;12-14;Darkshore" },
       { 3, 16, 7, "12-16 damage",
-        "Black Bear Patriarch;Bear;16-17;Loch Modan", "Shorecrawler;Crab;17-18;Westfall", "Den Mother;Bear;19;Darkshore",
+        "Black Bear Patriarch;Bear;16-17;Loch Modan", "Shore Crawler;Crab;17-18;Westfall", "Den Mother;Bear;19;Darkshore",
         "Ghost Saber;Cat;19-20;Darkshore", "Clattering Crawler;Crab;19-20;Ashenvale", "Ol' Sooty;Bear;20;Loch Modan",
         "Ashenvale Bear;Bear;21-22;Ashenvale", "Gray Bear;Bear;21-22;Hillsbrad Foothills",
         "Skittering Crustacean;Crab;22-23;Blackfathom Deeps (Dungeon)", "Snapping Crustacean;Crab;22-23;Blackfathom Deeps (Dungeon)" },
@@ -286,7 +286,7 @@ ns.abilities = {
     ranks = {
       { 1, 12, 0, "19-21 damage, -50% move speed 9 sec",
         "Tide Crawler;Crab;12-14;Darkshore", "Sand Crawler;Crab;13-14;Westfall", "Reef Crawler;Crab;15-17;Darkshore",
-        "Shorecrawler;Crab;17-18;Westfall", "Raging Reef Crawler;Crab;20-21;Darkshore / Ashenvale" },
+        "Shore Crawler;Crab;17-18;Westfall", "Raging Reef Crawler;Crab;20-21;Darkshore / Ashenvale" },
       { 2, 24, 0, "32-36 damage, -50% move speed",
         "Barbed Crustacean;Crab;25-26;Blackfathom Deeps (Dungeon)", "Enraged Reef Crawler;Crab;30-32;Desolace" },
       { 3, 36, 0, "41-47 damage, -50% move speed" },
