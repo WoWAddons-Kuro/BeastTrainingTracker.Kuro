@@ -139,14 +139,27 @@ local function Line(i)
     GameTooltip:AddLine(e.rank.effect, 1, 1, 1, true)
     GameTooltip:AddLine(("Pet level %d to use"):format(e.rank.level), 0.8, 0.8, 0.8)
     GameTooltip:AddLine(" ")
+    local anyLocated = false
     for i, tt in ipairs(e.teachers) do
       local mark = i == 1 and "> " or "   "
-      local loc = Located(tt) and "" or " |cff9d9d9d(no location)|r"
+      local located = Located(tt)
+      anyLocated = anyLocated or located
+      local loc = located and "" or " |cff9d9d9d(no location)|r"
       GameTooltip:AddDoubleLine(mark .. tt.name .. Geo.Tag(tt.name) .. loc, ("%s %s"):format(tt.family, tt.level), 0.25, 1, 0.25, 0.7, 0.7, 0.7)
     end
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("Click: waypoint  ·  Shift-click: all of them", 0.5, 0.5, 0.5)
-    if #e.teachers > 1 then GameTooltip:AddLine("Right-click: show a different beast", 0.5, 0.5, 0.5) end
+    if not anyLocated then
+      -- nothing can be waypointed, so don't offer to
+      GameTooltip:AddLine("No known location for any of these beasts.", 1, 0.5, 0.25, true)
+      GameTooltip:AddLine(Geo.HasQuestie() and "Not in Questie's data yet - target or mouse over one to record where you found it."
+        or "Install Questie, or target / mouse over one to record where you found it.", 0.5, 0.5, 0.5, true)
+    elseif not Located(e.teachers[1]) then
+      GameTooltip:AddLine("Shift-click: waypoint the ones with a location", 0.5, 0.5, 0.5)
+      GameTooltip:AddLine("Right-click: show a different beast", 0.5, 0.5, 0.5)
+    else
+      GameTooltip:AddLine("Click: waypoint  ·  Shift-click: all of them", 0.5, 0.5, 0.5)
+      if #e.teachers > 1 then GameTooltip:AddLine("Right-click: show a different beast", 0.5, 0.5, 0.5) end
+    end
     GameTooltip:Show()
   end)
   b:SetScript("OnLeave", GameTooltip_Hide)
