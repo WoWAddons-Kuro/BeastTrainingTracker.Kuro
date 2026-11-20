@@ -66,6 +66,7 @@ end
 ------------------------------------------------------------------------
 -- H.load(opts): fresh globals + fresh addon. Returns the addon namespace.
 --   opts.backup = BeastTrainingTrackerKuroBackup table to start with
+--   opts.flavour = "classic_era" | "forever" (default) - which Client_*.lua is picked
 ------------------------------------------------------------------------
 function H.load(opts)
   opts = opts or {}
@@ -156,6 +157,10 @@ function H.load(opts)
   GetTrainerServiceInfo = function(i) return unpack(S.trainer[i]) end
 
   IsAddOnLoaded = function() return false end
+
+  -- Game flavour for Client_Select.lua: opts.flavour = "classic_era" or "forever" (default)
+  WOW_PROJECT_CLASSIC, WOW_PROJECT_CAMELOT = 2, 100
+  WOW_PROJECT_ID = (opts.flavour == "classic_era") and WOW_PROJECT_CLASSIC or WOW_PROJECT_CAMELOT
 
   -- things the logic files check for and must find missing
   C_SpellBook, Enum, C_AddOns, C_Map, LibStub, TomTom, NpcDB, LibQuestieDB = nil, nil, nil, nil, nil, nil, nil, nil

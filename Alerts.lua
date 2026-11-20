@@ -26,6 +26,15 @@ local function NeededFromUnit(unit)
   return out, name
 end
 
+-- "Meat, Fish" for a teacher's family, or nil when the family has no diet
+-- entry on this client. Defined here (loaded after Core) but testable via ns.
+function ns.FamilyDietText(familyName)
+  if not familyName or not ns.Client or not ns.Client.FamilyDiet then return nil end
+  local diet = ns.Client.FamilyDiet(familyName)
+  if not diet or #diet == 0 then return nil end
+  return table.concat(diet, ", ")
+end
+
 ------------------------------------------------------------------------
 -- Nearby alert (target, mouseover, nameplates)
 ------------------------------------------------------------------------
@@ -83,11 +92,19 @@ local function Alert(unit, how)
   for _, e in ipairs(list) do parts[#parts + 1] = ("%s %d"):format(e.ab.name, e.rank.rank) end
   local who = (rare and "|cffff8000" or "|cffffd100") .. name .. "|r" .. (rare and " (rare)" or "")
   local msg = ("%s teaches |cff40ff40%s|r - tame it!"):format(who, table.concat(parts, ", "))
+  -- Second line: what the beast eats, so you know you can keep it fed. Every
+  -- entry for one beast shares a family, so the first is enough. Left out
+  -- entirely (never "Eats: ?") when the family is unknown.
+  local dietText = ns.FamilyDietText(list[1].t and list[1].t.family)
+  local dietLine = dietText and ("Eats: |cffffffff%s|r"):format(dietText) or nil
 
   if RaidNotice_AddMessage and RaidWarningFrame then
-    pcall(RaidNotice_AddMessage, RaidWarningFrame, msg, ChatTypeInfo and ChatTypeInfo["RAID_WARNING"] or { r = 1, g = 1, b = 1 })
+    -- RaidWarningFrame is a MessageFrame: "\n" renders as a second line
+    local banner = dietLine and (msg .. "\n" .. dietLine) or msg
+    pcall(RaidNotice_AddMessage, RaidWarningFrame, banner, ChatTypeInfo and ChatTypeInfo["RAID_WARNING"] or { r = 1, g = 1, b = 1 })
   end
   ns.Say(msg)
+  if dietLine then ns.Say(dietLine) end
   if o.alertSound then ns.PlayAlertSound() end
 end
 
@@ -278,6 +295,8 @@ local function AddTeachLines(tt)
       end
     end
   end
+  local dietText = ns.FamilyDietText(list[1] and list[1].t and list[1].t.family)
+  if dietText then tt:AddLine("Eats: " .. dietText, 0.8, 0.8, 0.8) end
   local st = ns.RS and ns.RS.Status(name)
   if st then tt:AddLine("RareScanner: " .. st.text, 1, 0.6, 0.25, true) end
   tt:Show()

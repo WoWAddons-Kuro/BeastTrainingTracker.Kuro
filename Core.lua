@@ -124,7 +124,11 @@ function ns.PetLevel()
 end
 function ns.PetFamily()
   if not UnitExists("pet") then return nil end
-  return UnitCreatureFamily("pet")
+  -- UnitCreatureFamily returns the flavour's own name ("Owl" on Era); the data
+  -- files use the canonical Forever names ("Bird of Prey"), so translate here.
+  local fam = UnitCreatureFamily("pet")
+  if fam and ns.Client and ns.Client.CanonicalFamilyName then return ns.Client.CanonicalFamilyName(fam) end
+  return fam
 end
 function ns.AbilityFitsPet(ab, fam)
   if ab.isAll or not fam then return true end

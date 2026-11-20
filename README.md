@@ -80,6 +80,12 @@ Settings → Map pins controls how busy the maps get:
 
 ## Alerts
 
+When a nearby beast teaches a rank you need, the "tame it!" banner and chat
+line carry a second line, **Eats: Meat, Fish**, so you know you can keep it fed.
+The same `Eats:` line sits under the "Teaches ..." lines in the beast's tooltip.
+Diets are per family and identical on Forever and Classic Era (Era's "Owl" is
+Forever's "Bird of Prey"; Era has no Fox or Core Hound).
+
 Settings → Alerts → **Alert sound...** opens a picker: a list of game sounds,
 each with *Play* and *Use*, plus a box for a custom sound - a file path such as
 `Interface\AddOns\MyAddon\ding.ogg` or a FileDataID. Default is the epic loot toast.

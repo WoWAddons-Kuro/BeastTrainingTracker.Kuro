@@ -74,6 +74,69 @@ test("rare ids are numbers for known beasts", function()
 end)
 
 ------------------------------------------------------------------------
+-- Client: pet families and diets per flavour
+------------------------------------------------------------------------
+test("diet: every family in the data files has a diet on Forever", function()
+  local ns = H.load()
+  eq(ns.Client.flavour, "forever")
+  for f in pairs(FAMILIES) do
+    local d = ns.Client.FamilyDiet(f)
+    ok(d and #d > 0, f .. " has no diet")
+    ok(ns.Client.FamilyExists(f), f .. " should exist on Forever")
+  end
+  for _, ab in ipairs(ns.abilities) do
+    for _, r in ipairs(ab.parsed) do
+      for _, t in ipairs(r.teachers) do
+        ok(ns.Client.FamilyDiet(t.family), ("%s (%s) has no diet"):format(t.name, t.family))
+      end
+    end
+  end
+  for _, p in ipairs(ns.rarePets) do
+    ok(ns.Client.FamilyDiet(p.family), ("%s (%s) has no diet"):format(p.name, p.family))
+  end
+  eq(ns.Client.FamilyDiet("Not A Family"), nil)
+  eq(ns.Client.FamilyDiet(nil), nil)
+end)
+
+test("diet: known values and a fresh copy each call", function()
+  local ns = H.load()
+  eq(table.concat(ns.Client.FamilyDiet("Wolf"), ", "), "Meat")
+  eq(table.concat(ns.Client.FamilyDiet("Cat"), ", "), "Meat, Fish")
+  eq(table.concat(ns.Client.FamilyDiet("Turtle"), ", "), "Fish, Fungus, Fruit, Raw Fish")
+  eq(table.concat(ns.Client.FamilyDiet("Bear"), ", "), "Meat, Fish, Cheese, Bread, Fungus, Fruit")
+  local a = ns.Client.FamilyDiet("Wolf")
+  a[1] = "Rocks"
+  eq(ns.Client.FamilyDiet("Wolf")[1], "Meat", "caller mutated the shared table")
+end)
+
+test("diet: Forever family names are the identity", function()
+  local ns = H.load()
+  eq(ns.Client.CanonicalFamilyName("Bird of Prey"), "Bird of Prey")
+  eq(ns.Client.DisplayFamilyName("Bird of Prey"), "Bird of Prey")
+  eq(ns.Client.FamilyExists("Fox"), true)
+  eq(ns.Client.FamilyExists("Core Hound"), true)
+end)
+
+test("diet: Classic Era maps Owl to Bird of Prey and has no Fox / Core Hound", function()
+  local ns = H.load({ flavour = "classic_era" })
+  eq(ns.Client.flavour, "classic_era")
+  eq(ns.Client.CanonicalFamilyName("Owl"), "Bird of Prey")
+  eq(ns.Client.CanonicalFamilyName("Wolf"), "Wolf")
+  eq(ns.Client.DisplayFamilyName("Bird of Prey"), "Owl")
+  eq(ns.Client.DisplayFamilyName("Wolf"), "Wolf")
+  eq(ns.Client.FamilyExists("Fox"), false)
+  eq(ns.Client.FamilyExists("Core Hound"), false)
+  eq(ns.Client.FamilyExists("Bird of Prey"), true)
+  -- diet works through either name
+  eq(table.concat(ns.Client.FamilyDiet("Owl"), ", "), "Meat")
+  eq(table.concat(ns.Client.FamilyDiet("Bird of Prey"), ", "), "Meat")
+  -- and the pet's family is canonical so data-file comparisons work
+  H.state.pet = { name = "Hoot", family = "Owl", level = 20, guid = "Pet-0-7", spells = {} }
+  eq(ns.PetFamily(), "Bird of Prey")
+  ok(ns.AbilityFitsPet(ns.byName.Claw, ns.PetFamily()), "Era owl should be able to use Claw")
+end)
+
+------------------------------------------------------------------------
 -- Saved data
 ------------------------------------------------------------------------
 test("fresh install creates empty saved data with defaults", function()

@@ -50,3 +50,31 @@ function impl.ThirdPartyCharKeyCandidates()
   end
   return out
 end
+
+--------------------------------------------------------------------------------
+-- Pet families. Forever is the canonical naming (the data files are transcribed
+-- from Petopia's Forever pages), so the name maps are the identity. All 19
+-- families exist, including the two new ones (Fox, Core Hound).
+--------------------------------------------------------------------------------
+local TAMEABLE_FAMILIES = {
+  ["Bat"] = true, ["Bear"] = true, ["Bird of Prey"] = true, ["Boar"] = true, ["Carrion Bird"] = true,
+  ["Cat"] = true, ["Core Hound"] = true, ["Crab"] = true, ["Crocolisk"] = true, ["Fox"] = true,
+  ["Gorilla"] = true, ["Hyena"] = true, ["Raptor"] = true, ["Scorpid"] = true, ["Spider"] = true,
+  ["Tallstrider"] = true, ["Turtle"] = true, ["Wind Serpent"] = true, ["Wolf"] = true,
+}
+
+function impl.CanonicalFamilyName(familyName)
+  return familyName
+end
+
+function impl.DisplayFamilyName(canonicalFamilyName)
+  return canonicalFamilyName
+end
+
+function impl.FamilyExists(canonicalFamilyName)
+  return TAMEABLE_FAMILIES[canonicalFamilyName] == true
+end
+
+function impl.FamilyDiet(familyName)
+  return ns.Client.CommonFamilyDiet(impl, familyName)
+end
