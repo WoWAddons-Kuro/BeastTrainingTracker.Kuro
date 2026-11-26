@@ -1517,6 +1517,15 @@ do
     function() Geo.QueuePins(true) end)
   Check(p, "Show untamed special pets on the map", "rarePins", 300, y, "Pins for untamed rares (and outdoor elites / quest spawns) you can tame, even if they teach nothing you need.")
   y = y - 24
+  do
+    local miniNote = ns.Client.StableMasterMinimapPinsWanted()
+      and "Shown on the world map and the minimap (this client has no native stable master tracking)."
+      or "Shown on the world map. " .. (ns.Client.StableMasterNativeTrackingHint() or "")
+    Check(p, "Stable master pins", "stablePins", 4, y,
+      "Every stable master friendly to your faction, from QuestieDB. Click a pin to set a waypoint; /bttk stable finds the nearest. " .. miniNote,
+      function() Geo.QueuePins(true) end)
+  end
+  y = y - 24
   Check(p, "Open the map on the first waypoint", "routeOpenMap", 4, y, "When you set waypoints, open the world map on the first stop (not in combat).")
   Check(p, "Draw the hunt route on the world map", "routeLines", 300, y, "Numbered stops joined by a dotted line, nearest first. Pick the color and opacity below.", function() ns.Geo.DrawRoute() end)
   y = y - 36

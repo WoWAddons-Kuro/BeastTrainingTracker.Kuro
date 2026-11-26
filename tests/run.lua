@@ -756,6 +756,114 @@ test("route: TomTom gets one waypoint per stop", function()
 end)
 
 ------------------------------------------------------------------------
+-- Stable masters
+------------------------------------------------------------------------
+-- a fake QuestieDB: friendly to both, Horde only, a [DND] placeholder, a plain vendor, and an unmapped zone
+local function StableDB()
+  return H.setQuestieDB({
+    [100] = { name = "Shoja'my",   flags = 8192 + 1, faction = "AH", spawns = { [1637] = { { 20, 30 } } } },
+    [101] = { name = "Xon'cha",    flags = 8192,     faction = "H",  spawns = { [1637] = { { 60, 70 }, { 65, 72 } } } },
+    [102] = { name = "[DND] Test", flags = 8192,     faction = "AH", spawns = { [1637] = { { 50, 50 } } } },
+    [103] = { name = "Some Vendor", flags = 4,       faction = "AH", spawns = { [1637] = { { 10, 10 } } } },
+    [104] = { name = "Unmapped",   flags = 8192,     faction = "AH", spawns = { [9999] = { { 10, 10 } } } },
+  }, { [1637] = 1454 })
+end
+
+-- the scan runs in a coroutine driven by an OnUpdate frame: pump it
+local function RunStableScan(ns)
+  ns.Geo.ready = true
+  ns.RefreshNow()
+  for _ = 1, 50 do
+    for _, f in ipairs(H.frames) do
+      if f.scripts.OnUpdate then f.scripts.OnUpdate(f, 0.1) end
+    end
+    if ns.Stables.ready then break end
+  end
+end
+
+test("client: both flavours implement the stable master methods", function()
+  for _, flavour in ipairs({ "classic_era", "forever" }) do
+    local ns = H.load({ flavour = flavour })
+    ok(not H.said("client is missing"), flavour .. ": missing client method")
+    ok(not H.said("not in Client.INTERFACE"), flavour .. ": extra client method")
+    eq(ns.Client.PlayerFactionKey(), "H")
+    eq(type(ns.Client.StableMasterMinimapPinsWanted()), "boolean")
+  end
+  local era = H.load({ flavour = "classic_era" })
+  eq(era.Client.StableMasterMinimapPinsWanted(), true, "Era draws minimap pins")
+  eq(era.Client.StableMasterNativeTrackingHint(), nil)
+  local fv = H.load({ flavour = "forever" })
+  eq(fv.Client.StableMasterMinimapPinsWanted(), false, "Forever relies on native tracking")
+  has(fv.Client.StableMasterNativeTrackingHint(), "tracking")
+end)
+
+test("stables: without QuestieDB the feature reports itself absent", function()
+  local ns = H.load()
+  eq(ns.Stables.HasSource(), false)
+  SlashCmdList.BEASTTRAININGTRACKERKURO("stable")
+  ok(H.said("QuestieDB is not installed"), "no QuestieDB message")
+  eq(#ns.Geo.route, 0)
+end)
+
+test("stables: scan keeps flag matches friendly to my faction, skips [DND] and unmapped zones", function()
+  local ns = H.load()
+  StableDB()
+  RunStableScan(ns)
+  ok(ns.Stables.ready, "scan did not finish: " .. tostring(ns.Stables.status))
+  eq(ns.Stables.count, 2, "Horde should see Shoja'my and Xon'cha")
+  eq(#ns.Stables.list, 3, "one entry per spawn point")
+  for _, e in ipairs(ns.Stables.list) do
+    eq(e.map, 1454)
+    ok(e.name ~= "[DND] Test" and e.name ~= "Some Vendor" and e.name ~= "Unmapped", "kept " .. e.name)
+  end
+end)
+
+test("stables: Alliance only sees AH stable masters", function()
+  local ns = H.load()
+  H.state.faction = "Alliance"
+  StableDB()
+  RunStableScan(ns)
+  eq(ns.Stables.count, 1)
+  eq(ns.Stables.list[1].name, "Shoja'my")
+end)
+
+test("stables: nearest picks the closest on my map and /bttk stable sets a manual waypoint", function()
+  local ns = H.load()
+  StableDB()
+  RunStableScan(ns)
+  H.setPosition(1454, 0.62, 0.71)
+  local e = ns.Stables.Nearest()
+  eq(e.name, "Xon'cha")
+  eq(e.x, 0.6)
+  SlashCmdList.BEASTTRAININGTRACKERKURO("stable")
+  ok(H.said("nearest stable master: |cffffffffXon'cha|r"), "nearest not announced")
+  eq(#ns.Geo.route, 1)
+  eq(ns.Geo.route[1].label, "Xon'cha - Stable Master")
+  ok(ns.Geo.route[1].manual, "stable stop must be manual so pruning keeps it")
+  H.fire("CHAT_MSG_SYSTEM", "You have learned a new ability: Dash (Rank 1).")
+  eq(#ns.Geo.route, 1, "stable stop was pruned")
+end)
+
+test("stables: off my map says so and lists where they are", function()
+  local ns = H.load()
+  StableDB()
+  RunStableScan(ns)
+  H.setPosition(1412, 0.5, 0.5)
+  local e, _, reason = ns.Stables.Nearest()
+  eq(e, nil)
+  has(reason, "this map")
+  SlashCmdList.BEASTTRAININGTRACKERKURO("stable")
+  ok(H.said("stable masters are in:"), "map list missing")
+end)
+
+test("stables: Questie status line counts them once ready", function()
+  local ns = H.load()
+  StableDB()
+  RunStableScan(ns)
+  has(ns.Geo.AddonStatus()[1].text, "2 stable masters")
+end)
+
+------------------------------------------------------------------------
 -- Version
 ------------------------------------------------------------------------
 test("version: unpackaged copy reports a development version", function()

@@ -39,6 +39,7 @@ Target client: WoW Forever (`_forever_`, interface `16001`, Mainline UI code).
 | `/bttk tracker` or middle-click the minimap button | Show / hide the zone tracker panel |
 | `/bttk petxp` or right-click the pet XP bar | Pet XP bar options |
 | `/bttk clearwp` | Remove the waypoints this addon added |
+| `/bttk stable` | Nearest stable master on your map, set as a waypoint (needs QuestieDB) |
 | `/bttk where <beast>` | Where a beast’s map locations come from (for bug reports) |
 | `/bttk rares` | Rare teachers you still need, with RareScanner timers |
 | `/bttk status` | Saved data info, last scan, coordinate sources |
@@ -77,6 +78,12 @@ Settings → Map pins controls how busy the maps get:
 - **Zoom growth** - world-map pins are drawn at *Pin size* fully zoomed out and
   grow to this multiple (up to 3x, default 2x) fully zoomed in. *Off* keeps them
   one size.
+- **Stable master pins** (default on; needs QuestieDB) - every stable master
+  friendly to your faction, with the stable icon and a tan border. Click one to
+  add it to your route. On the world map on both clients; on the **minimap only on
+  Classic Era**, whose tracking menu has no stable master entry - on Forever use
+  the minimap's own *Stable Master* tracking instead. The Beast Training window
+  shows the nearest one on Classic Era.
 
 ## Alerts
 

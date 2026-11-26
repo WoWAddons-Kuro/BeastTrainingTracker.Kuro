@@ -61,3 +61,41 @@ end
 function impl.FamilyDiet(familyName)
   return ns.Client.CommonFamilyDiet(impl, familyName)
 end
+
+function impl.PlayerFactionKey()
+  return ns.Client.CommonPlayerFactionKey()
+end
+
+--------------------------------------------------------------------------------
+-- Stable masters. Era's minimap tracking menu (1.15) has no townsfolk entries
+-- at all - those arrived with TBC - so the only way to see a stable master on
+-- the minimap is for us to draw it.
+--------------------------------------------------------------------------------
+function impl.StableMasterMinimapPinsWanted()
+  return true
+end
+
+function impl.StableMasterNativeTrackingHint()
+  return nil
+end
+
+-- On Era, Beast Training is the vanilla craft window (Blizzard_CraftUI's
+-- CraftFrame, with "Training Points" and a Train button), NOT
+-- ClassTrainerFrame. The band between the title (y -17) and the ability list
+-- (Craft1 at y -96) is empty for Beast Training (CraftRankFrame, the skill
+-- bar at y -37, is hidden there); the nearest stable master line sits in it,
+-- centred, just above the list.
+function impl.TrainerFrameNearestAnchor()
+  local f = CraftFrame
+  if not f then return nil end
+  return {
+    parent = f,
+    point = "TOP",
+    relTo = f,
+    relPoint = "TOP",
+    x = -8,
+    y = -66,
+    width = 320,
+    justify = "CENTER",
+  }
+end

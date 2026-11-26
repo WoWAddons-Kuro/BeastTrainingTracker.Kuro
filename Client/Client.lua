@@ -63,7 +63,44 @@ Client.INTERFACE = {
   -- (as Beast Lore lists them), or nil when the family is unknown. Accepts
   -- either the flavour's or the canonical name.
   "FamilyDiet",
+
+  -- PlayerFactionKey() -> "A" | "H" | nil, the shape QuestieDB's
+  -- NpcDB.friendlyToFaction uses, so stable masters can be faction-filtered
+  -- without UnitFactionGroup leaking into Geo / StableMasters.
+  "PlayerFactionKey",
+
+  -- StableMasterMinimapPinsWanted() -> true if this flavour should draw its own
+  -- stable-master pins on the MINIMAP (world map pins are always drawn).
+  --   Era:     true  - Era's minimap tracking menu has no townsfolk entries
+  --   Forever: false - the Mainline UI has a native "Stable Master" tracking
+  --            entry for hunters, so our own minimap pins would double up
+  "StableMasterMinimapPinsWanted",
+
+  -- StableMasterNativeTrackingHint() -> one-line string telling the player
+  -- where the native minimap toggle lives, or nil when there is none (Era).
+  "StableMasterNativeTrackingHint",
+
+  -- TrainerFrameNearestAnchor() -> where the "Nearest stable master" line sits
+  -- on the Beast Training window, or nil to not show it on this flavour:
+  --   { parent = frame, point =, relPoint =, x =, y =, width =, justify = }
+  -- Only called when ClassTrainerFrame exists.
+  "TrainerFrameNearestAnchor",
 }
+
+--------------------------------------------------------------------------------
+-- Shared constants
+--------------------------------------------------------------------------------
+-- Minimap tracking icon for stable masters; present on both clients (Questie
+-- uses the same path for its townsfolk menu).
+Client.STABLE_MASTER_ICON = "Interface\\Minimap\\tracking\\stablemaster"
+
+-- Common PlayerFactionKey; UnitFactionGroup is identical on both flavours.
+function Client.CommonPlayerFactionKey()
+  local f = UnitFactionGroup and UnitFactionGroup("player")
+  if f == "Alliance" then return "A" end
+  if f == "Horde" then return "H" end
+  return nil
+end
 
 --------------------------------------------------------------------------------
 -- Shared data: what each family eats. Identical on Era and Forever (the Forever

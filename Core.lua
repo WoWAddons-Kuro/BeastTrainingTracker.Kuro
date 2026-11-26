@@ -332,13 +332,70 @@ local function OnTrainerShown()
     for i = 1, math.min(8, n) do print("|cffabd473BTT|r  ", i, GetTrainerServiceInfo(i)) end
   end
   ScanTrainerSoon()
+  ns.UpdateTrainerStableLine()
+end
+
+-- "Nearest stable master: ..." line on the Beast Training window. Where it
+-- sits is the Client's call: on Era, Beast Training is the vanilla CraftFrame
+-- (Blizzard_CraftUI), on Forever it is ClassTrainerFrame; the Client returns
+-- the parent and anchor, or nil for no line. Clicking it sets a waypoint,
+-- like a stable pin.
+local stableLine
+function ns.UpdateTrainerStableLine()
+  if not ns.Stables then return end
+  local a = ns.Client.TrainerFrameNearestAnchor()
+  if not a or not a.parent then
+    if ns.debugOn then P("stable line: no anchor on this client / frame not loaded yet") end
+    return
+  end
+  local show = ns.Active() and ns.db and ns.db.opts.stablePins ~= false and a.parent:IsShown() and IsBeastTraining()
+  if ns.debugOn then P("stable line: show =", tostring(show), "status:", ns.Stables.status) end
+  if not show then
+    if stableLine then stableLine:Hide() end
+    return
+  end
+  if not stableLine then
+    stableLine = CreateFrame("Button", nil, a.parent)
+    stableLine:SetPoint(a.point, a.relTo or a.parent, a.relPoint, a.x, a.y)
+    stableLine:SetSize(a.width or 280, 16)
+    stableLine:SetFrameLevel(a.parent:GetFrameLevel() + 5)
+    stableLine.text = stableLine:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    stableLine.text:SetAllPoints()
+    stableLine.text:SetJustifyH(a.justify or "LEFT")
+    stableLine:SetScript("OnClick", function(self) if self.entry then ns.Geo.WaypointStable(self.entry) end end)
+    stableLine:SetScript("OnEnter", function(self)
+      if not self.entry then return end
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:AddLine(self.entry.name, 1, 0.82, 0)
+      GameTooltip:AddLine("Stable Master - click to set a waypoint", 0.8, 0.8, 0.8)
+      GameTooltip:Show()
+    end)
+    stableLine:SetScript("OnLeave", GameTooltip_Hide)
+  end
+  local e, _, reason = ns.Stables.Nearest()
+  stableLine.entry = e
+  if e then
+    stableLine.text:SetText(("|cffabd473Nearest stable master:|r %s (%.0f, %.0f)"):format(e.name, e.x * 100, e.y * 100))
+  else
+    stableLine.text:SetText("|cff9d9d9dNearest stable master: " .. (reason or "?") .. "|r")
+  end
+  stableLine:Show()
 end
 
 local hooked
 local function HookTrainer()
-  if hooked or not ClassTrainerFrame then return end
-  ClassTrainerFrame:HookScript("OnShow", OnTrainerShown)
-  hooked = true
+  if not hooked and ClassTrainerFrame then
+    ClassTrainerFrame:HookScript("OnShow", OnTrainerShown)
+    ClassTrainerFrame:HookScript("OnHide", function() if stableLine then stableLine:Hide() end end)
+    hooked = true
+  end
+  -- Era: Beast Training is Blizzard_CraftUI's CraftFrame (load-on-demand, may
+  -- appear after our own ADDON_LOADED); the stable line hangs off it there.
+  if not ns.craftHooked and CraftFrame then
+    CraftFrame:HookScript("OnShow", function() if ns.Active() then ns.UpdateTrainerStableLine() end end)
+    CraftFrame:HookScript("OnHide", function() if stableLine then stableLine:Hide() end end)
+    ns.craftHooked = true
+  end
 end
 
 -- Current pet's spellbook. This is what the PET has, not what you've
@@ -748,6 +805,8 @@ local DEFAULTS = {
   -- pin look: size in px, alpha 0.2-1
   -- pinZoomGrow: world-map pins grow to this multiple at full zoom-in (1 = fixed size)
   pinSize = 4, pinAlpha = 1, pinZoomGrow = 2,
+  -- stable master pins (QuestieDB): world map everywhere, minimap where the Client says so
+  stablePins = true,
   -- rare pets
   rareHideTamed = false, rareHideHigh = false, rarePins = true, rareSortSpeed = false,
   spShowRare = true, spShowElite = true, spShowSpawned = true, spShowDungeon = false,
@@ -991,6 +1050,8 @@ SlashCmdList.BEASTTRAININGTRACKERKURO = function(msg)
     end
   elseif msg == "clearwp" then
     if ns.Geo then ns.Geo.ClearWaypoints() end
+  elseif msg == "stable" then
+    if ns.Stables then ns.Stables.Command() end
   elseif msg == "debug" then
     ns.debugOn = true
     pcall(dbgFrame.RegisterAllEvents, dbgFrame)
@@ -1026,6 +1087,7 @@ SlashCmdList.BEASTTRAININGTRACKERKURO = function(msg)
     Say("/bttk tracker - show/hide the zone tracker   /bttk minimap - show/hide minimap button")
     Say("/bttk petxp - pet XP bar options")
     Say("/bttk clearwp - remove waypoints this addon added   /bttk status - saved data info")
+    Say("/bttk stable - nearest stable master, set as a waypoint (needs QuestieDB)")
     Say("/bttk where <beast> - show where a beast's map locations come from")
     Say("/bttk rares - rare teachers you still need, with RareScanner timers")
     Say("/bttk reset - wipe saved data (asks first)")

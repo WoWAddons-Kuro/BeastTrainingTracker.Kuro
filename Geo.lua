@@ -23,7 +23,15 @@ local mapByName        -- "Duskwood" -> uiMapID
 ------------------------------------------------------------------------
 -- Optional addons
 ------------------------------------------------------------------------
-function Geo.HasQuestie() return _G.NpcDB ~= nil and NpcDB.IdsByName ~= nil end
+-- QuestieDB's NPC reader. Always LibQuestieDB.Npc, never the NpcDB global:
+-- that is a generic name other addons overwrite (see
+-- AddonManagement\_EXTERNAL_APIS\questiedb_contract_4.md).
+local function Npc()
+  local LQ = _G.LibQuestieDB
+  return LQ and LQ.Npc or nil
+end
+Geo.Npc = Npc
+function Geo.HasQuestie() local n = Npc() return n ~= nil and n.IdsByName ~= nil end
 function Geo.HasTomTom() return TomTom and TomTom.AddWaypoint and true or false end
 function Geo.HasRareScanner() return ns.RS and ns.RS.Loaded() or false end
 
@@ -70,6 +78,7 @@ local function MapFor(area)
   if m then areaToMap[area] = m end
   return m
 end
+Geo.MapForArea = MapFor -- StableMasters.lua uses the same QuestieDB area -> uiMapID tables
 
 function Geo.MapIdByName(zone)
   if not mapByName then
@@ -98,13 +107,13 @@ local function QuestieInfo(name)
   local c = qcache[name]
   if c ~= nil then return c or nil end
   local res = { spawns = {} }
-  for _, id in ipairs(NpcDB.IdsByName(name) or {}) do
-    local ok, rank = pcall(NpcDB.Get, id, "rank")
+  for _, id in ipairs(Npc().IdsByName(name) or {}) do
+    local ok, rank = pcall(Npc().Get, id, "rank")
     if ok and rank then
       if rank == 2 or rank == 4 then res.rare = true end
       if rank == 1 or rank == 2 or rank == 3 then res.elite = true end
     end
-    local ok2, sp = pcall(NpcDB.Get, id, "spawns")
+    local ok2, sp = pcall(Npc().Get, id, "spawns")
     if ok2 and type(sp) == "table" then
       for area, pts in pairs(sp) do
         local m = MapFor(area)
@@ -270,10 +279,10 @@ function Geo.Explain(name)
   elseif not Geo.ready then
     Say("  Questie: still loading")
   else
-    local ids = NpcDB.IdsByName(name) or {}
+    local ids = Npc().IdsByName(name) or {}
     Say(("  Questie: %d NPC id(s) %s"):format(#ids, table.concat(ids, ", ")))
     for _, id in ipairs(ids) do
-      local ok, sp = pcall(NpcDB.Get, id, "spawns")
+      local ok, sp = pcall(Npc().Get, id, "spawns")
       if ok and type(sp) == "table" then
         for area, pts in pairs(sp) do
           local m = MapFor(area)
@@ -588,6 +597,7 @@ end
 
 local hooked
 local worldUsed -- forward: the world-map pins currently placed (set up in the pin section)
+local stableWorldUsed -- forward: stable-master world-map pins (stable pin section)
 
 -- World-map pins grow with zoom: 1x fully zoomed out, opts.pinZoomGrow x
 -- fully zoomed in. Our icon is a child of HereBeDragons' pin frame, so
@@ -610,6 +620,9 @@ function Geo.ApplyPinZoom()
     end
   end
   for _, p in ipairs(worldUsed) do p:SetScale(scale) end
+  -- stable pins keep a fixed screen size: city maps (Darnassus, Ironforge)
+  -- have a zoom range that made them shrink to a few pixels
+  for _, p in ipairs(stableWorldUsed or {}) do p:SetScale(1) end
 end
 
 local function HookWorldMap()
@@ -862,6 +875,20 @@ function Geo.WaypointMany(list)
     ns.Say("  |cffff9040Questie isn't installed, so this route only includes beasts you've spotted yourself - some may be missing.|r")
   end
   return n
+end
+
+-- A stable master (StableMasters.lua entry { name=, map=, x=, y= }): added to
+-- the current route as a manual stop, so OrderStops / PruneRoute keep it.
+function Geo.WaypointStable(e, quiet)
+  if not (e and e.map and e.x and e.y) then return end
+  local label = e.name .. " - Stable Master"
+  local n = SetRoute({ Geo.MakeStop({ map = e.map, x = e.x, y = e.y }, label, nil, true) }, true)
+  if not quiet then
+    ns.Say(("waypoint set: %s (%.0f, %.0f)%s%s"):format(label, e.x * 100, e.y * 100,
+      n > 1 and (" - route now has %d stops"):format(n) or "",
+      Geo.HasTomTom() and "" or " - follow the marker on your minimap edge"))
+  end
+  return true
 end
 
 function Geo.ClearWaypoints(quiet)
@@ -1148,6 +1175,98 @@ function Geo.UpdatePins()
       miniUsed[#miniUsed + 1] = p
     end
   end
+  Geo.UpdateStablePins()
+end
+
+------------------------------------------------------------------------
+-- Stable master pins (StableMasters.lua supplies the data)
+--
+-- Own HBD ref and pools so beast-pin rebuilds never churn these. World map
+-- on every flavour; minimap only where the Client says so (Era has no native
+-- stable-master tracking, Forever does).
+------------------------------------------------------------------------
+local REF_STABLE = "BeastTrainingTrackerKuroStable"
+local stablePool, stableMiniUsed = {}, {}
+stableWorldUsed = {} -- declared above HookWorldMap so Geo.ApplyPinZoom can see it
+local STABLE_BORDER = { 0.9, 0.75, 0.45, 0.95 } -- tan: "service", not "beast"
+
+local function StablePinEnter(self)
+  local e = self.stable
+  local tip = GameTooltip
+  tip:SetOwner(self, "ANCHOR_RIGHT")
+  tip:AddLine(e.name, 1, 0.82, 0)
+  tip:AddLine("Stable Master", 0.8, 0.8, 0.8)
+  local info = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(e.map)
+  if info and info.name then tip:AddLine(("%s (%.0f, %.0f)"):format(info.name, e.x * 100, e.y * 100), 0.6, 0.6, 0.6) end
+  tip:AddLine("Location from Questie", 0.5, 0.5, 0.5)
+  tip:AddLine(" ")
+  tip:AddLine("Click: waypoint", 0.5, 0.5, 0.5)
+  tip:Show()
+end
+
+local function NewStablePin()
+  local p = table.remove(stablePool)
+  if p then return p end
+  p = CreateFrame("Button", nil, UIParent)
+  -- a thin, mostly transparent ring instead of a solid square: the stable
+  -- icon has its own shape and reads better without a box around it
+  p.border = p:CreateTexture(nil, "BACKGROUND")
+  p.border:SetPoint("TOPLEFT", -1, 1)
+  p.border:SetPoint("BOTTOMRIGHT", 1, -1)
+  p.border:SetColorTexture(STABLE_BORDER[1], STABLE_BORDER[2], STABLE_BORDER[3], 0.25)
+  p.tex = p:CreateTexture(nil, "ARTWORK")
+  p.tex:SetAllPoints()
+  p.tex:SetTexture(ns.Client.STABLE_MASTER_ICON)
+  p:RegisterForClicks("AnyUp")
+  p:SetScript("OnEnter", StablePinEnter)
+  p:SetScript("OnLeave", GameTooltip_Hide)
+  p:SetScript("OnClick", function(self) Geo.WaypointStable(self.stable) end)
+  return p
+end
+
+local function ClearStablePins()
+  if not Libs() then return end
+  HBDPins:RemoveAllWorldMapIcons(REF_STABLE)
+  HBDPins:RemoveAllMinimapIcons(REF_STABLE)
+  for _, p in ipairs(stableWorldUsed) do p:Hide(); stablePool[#stablePool + 1] = p end
+  for _, p in ipairs(stableMiniUsed) do p:Hide(); stablePool[#stablePool + 1] = p end
+  wipe(stableWorldUsed); wipe(stableMiniUsed)
+end
+Geo.ClearStablePins = ClearStablePins
+
+-- Stable icons need to stay legible: at least 10 px, and 1.33x the beast pin size like rares.
+local function StablePinSize(base) return math.max(10, math.floor(base * 1.33 + 0.5)) end
+
+function Geo.UpdateStablePins()
+  ClearStablePins()
+  local St = ns.Stables
+  if not (ns.db and Libs() and ns.Active() and St and St.ready) then return end
+  local o = ns.db.opts
+  if o.pinsOff or o.stablePins == false then return end
+  local size, alpha = StablePinSize(o.pinSize or 4), o.pinAlpha or 1
+  local pm = PlayerPos()
+  local wantMini = ns.Client.StableMasterMinimapPinsWanted() and pm ~= nil
+
+  for _, e in ipairs(St.list) do
+    local p = NewStablePin()
+    p:SetSize(size, size)
+    p:SetAlpha(alpha)
+    p.stable = e
+    -- SHOW_PARENT: a city stable master (Darnassus) also shows on the zone
+    -- that contains the city (Teldrassil), the way Blizzard's own inn /
+    -- mailbox POIs do. Beast pins stay on their own map only.
+    HBDPins:AddWorldMapIconMap(REF_STABLE, p, e.map, e.x, e.y, HBD_PINS_WORLDMAP_SHOW_PARENT or 1)
+    stableWorldUsed[#stableWorldUsed + 1] = p
+    if wantMini and e.map == pm then
+      local m = NewStablePin()
+      m:SetSize(math.max(10, math.floor(size * 0.85 + 0.5)), math.max(10, math.floor(size * 0.85 + 0.5)))
+      m:SetAlpha(alpha)
+      m.stable = e
+      HBDPins:AddMinimapIconMap(REF_STABLE, m, e.map, e.x, e.y, false, false)
+      stableMiniUsed[#stableMiniUsed + 1] = m
+    end
+  end
+  Geo.ApplyPinZoom()
 end
 
 -- Rebuild pins only when something that affects them changed
@@ -1165,7 +1284,8 @@ function Geo.QueuePins(force)
   local sig = table.concat({ ns.learnedSerial or 0, ns.PlayerLevel(), ns.CurrentZone(), tostring(o.mapPinMode),
     tostring(o.minimapPinMode), tostring(o.huntPetOnly), tostring(o.huntDungeons), tostring(Geo.ready), ns.PetFamily() or "",
     tostring(o.pinsOff), tostring(o.rarePins), tostring(ns.tamedSerial or 0), tostring(ns.seenSerial or 0),
-    tostring(o.pinSize), tostring(o.pinAlpha), tostring(o.pinZoomGrow) }, "|")
+    tostring(o.pinSize), tostring(o.pinAlpha), tostring(o.pinZoomGrow),
+    tostring(o.stablePins), tostring(ns.Stables and ns.Stables.ready) }, "|")
   if sig == lastSig and not force then return end
   lastSig = sig
   if queued then return end
@@ -1181,6 +1301,7 @@ local lastPruneSig
 ns.OnDeactivate(function()
   lastSig = nil
   ClearPins()
+  ClearStablePins()
   if #Geo.route > 0 then Geo.ClearWaypoints(true) end
   ClearDots()
 end)
@@ -1213,6 +1334,9 @@ function Geo.AddonStatus()
   if Geo.HasQuestie() then
     q = Geo.ready and ("Spawn locations for every beast (%d looked up so far)"):format(Geo.LocatedCount())
       or "Loading beast locations..."
+    if ns.Stables and ns.Stables.ready then
+      q = q .. (", %d stable masters"):format(ns.Stables.count or 0)
+    end
   else
     q = ("Not detected - map pins use the %d beast%s you've spotted yourself. Install Questie for every spawn.")
       :format(seen, seen == 1 and "" or "s")
@@ -1250,7 +1374,7 @@ ns.OnLogin(function()
   -- build QuestieDB's name index spread over several frames
   Geo.status = "loading beast locations..."
   local co = coroutine.create(function()
-    if NpcDB.BuildNameIndexAsync then NpcDB.BuildNameIndexAsync(400) else NpcDB.BuildNameIndex() end
+    if Npc().BuildNameIndexAsync then Npc().BuildNameIndexAsync(400) else Npc().BuildNameIndex() end
   end)
   local runner = CreateFrame("Frame")
   runner:SetScript("OnUpdate", function(self)

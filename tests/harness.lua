@@ -5,7 +5,7 @@ local H = {}
 
 local LOGIC_FILES = {
   "Client/Client.lua", "Client/Client_Forever.lua", "Client/Client_ClassicEra.lua", "Client/Client_Select.lua",
-  "Data.lua", "RarePets.lua", "RareIds.lua", "Core.lua", "Geo.lua", "Rares.lua",
+  "Data.lua", "RarePets.lua", "RareIds.lua", "Core.lua", "Geo.lua", "StableMasters.lua", "Rares.lua",
 }
 
 ------------------------------------------------------------------------
@@ -107,6 +107,17 @@ function H.load(opts)
   _G.strsplit = strsplit
   wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
   tinsert = table.insert
+  -- WoW ships LuaBitOp as `bit`; plain Lua 5.1 has none. Only band is needed.
+  bit = bit or bit32 or {
+    band = function(a, b)
+      local r, p = 0, 1
+      while a > 0 and b > 0 do
+        if a % 2 == 1 and b % 2 == 1 then r = r + p end
+        a, b, p = math.floor(a / 2), math.floor(b / 2), p * 2
+      end
+      return r
+    end,
+  }
   time = os.time
   date = os.date
   GetTime = function() H.clock = H.clock + 1 return H.clock end
@@ -183,6 +194,39 @@ function H.setPosition(map, x, y)
     GetBestMapForUnit = function() return map end,
     GetPlayerMapPosition = function() return { GetXY = function() return x, y end } end,
   }
+end
+
+-- Fake QuestieDB with a few stable masters. npcs = { [id] = { name=, flags=, faction=, spawns = { [areaId] = {{x,y},...} } } }
+-- areaToMap maps the areaIds used to uiMapIDs. Area ids are published as a Lua source string, like the real thing.
+function H.setQuestieDB(npcs, areaToMap)
+  local STABLE = 8192
+  local function field(key)
+    return function(id) local n = npcs[id] return n and n[key] end
+  end
+  local Npc = {
+    name = field("name"), npcFlags = field("flags"), friendlyToFaction = field("faction"), spawns = field("spawns"),
+    GetAllIds = function(hash)
+      local out = {}
+      for id in pairs(npcs) do if hash then out[id] = true else out[#out + 1] = id end end
+      return out
+    end,
+    IdsByName = function(name)
+      local out = {}
+      for id, n in pairs(npcs) do if n.name == name then out[#out + 1] = id end end
+      return out
+    end,
+    Get = function(id, key) local n = npcs[id] return n and n[key] end,
+    BuildNameIndex = function() end,
+  }
+  local src = { "return {" }
+  for area, map in pairs(areaToMap or {}) do src[#src + 1] = ("[%d] = %d,"):format(area, map) end
+  src[#src + 1] = "}"
+  LibQuestieDB = {
+    Npc = Npc,
+    Enum = { npcFlags = { STABLEMASTER = STABLE } },
+    Support = { Get = function() return { private = { areaIdToUiMapId = table.concat(src, " ") } } end },
+  }
+  return Npc
 end
 
 -- Did any chat line contain this text?

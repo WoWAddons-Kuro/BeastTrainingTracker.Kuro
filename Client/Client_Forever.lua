@@ -78,3 +78,28 @@ end
 function impl.FamilyDiet(familyName)
   return ns.Client.CommonFamilyDiet(impl, familyName)
 end
+
+function impl.PlayerFactionKey()
+  return ns.Client.CommonPlayerFactionKey()
+end
+
+--------------------------------------------------------------------------------
+-- Stable masters. The Mainline minimap tracking menu already offers a
+-- "Stable Master" entry to hunters, so drawing our own minimap pins would
+-- only double the icons. World-map pins have no native equivalent and are
+-- drawn by Geo.lua on every flavour.
+--------------------------------------------------------------------------------
+function impl.StableMasterMinimapPinsWanted()
+  return false
+end
+
+function impl.StableMasterNativeTrackingHint()
+  return "Minimap: turn on Stable Master in the minimap tracking menu to see them there."
+end
+
+-- The Mainline trainer frame has no free status box along the bottom. Until
+-- a layout is verified in game the trainer line is not shown on Forever.
+-- (/bttk stable and the map pins carry the feature.)
+function impl.TrainerFrameNearestAnchor()
+  return nil
+end
